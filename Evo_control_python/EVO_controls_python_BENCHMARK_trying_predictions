@@ -4,6 +4,7 @@ import random
 import ProcessOptimizer as po # used to suggest next experiment
 from ProcessOptimizer.utils import cook_estimator #Used to customize the algorithm
 from ProcessOptimizer.learning.gaussian_process.kernels import Matern #A specific "brain" in the algorithm
+from ProcessOptimizer import expected_minimum
 import glob
 import os
 import pandas as pd
@@ -16,7 +17,8 @@ batch_size = 1
 comparator_delta = 48
 space = [(0, 10)]*10
 n_objectives = 1
-
+n_initial=20
+best_prediction=[]
 
 def get_latest_file(path, fileextension):
     '''
@@ -166,47 +168,60 @@ def make_recipe_file(link_to_recipe_folder, iteration, recipe):
             #antal rækker tilsvarende antal komponenter i buffer
             writer.writerow(['SOURCE4','22','DEST1',str(iteration+comparator_delta),str(100-(sum(next_x))+10)]) #Vol(water until 225uL)
             writer.writerow(['SOURCE4','24','DEST1',str(iteration+comparator_delta),str(20)]) #Add substrate until 250uM
-    else:
-        recipe_file_first_add_falcon = os.path.join(link_to_recipe_folder, 'LOCI_first_adds_FALCON1.csv')
-        recipe_file_first_add_Amber = os.path.join(link_to_recipe_folder, 'LOCI_first_adds_AMBER1.csv')
-        recipe_file_second_add_falcon = os.path.join(link_to_recipe_folder, 'LOCI_second_adds_FALCON1.csv')
+
+def make_prediction_check_file(link_to_recipe_folder, iteration, recipe):
+    next_x = recipe
+    newcomparator_delta=4
+    if batch_size == 1:
+        recipe_file_first_add_falcon = os.path.join(link_to_recipe_folder, 'TRYPSIN_first_adds.csv')
         with open(recipe_file_first_add_falcon, mode='w', newline='') as file:
             writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        with open(recipe_file_first_add_Amber, mode='w', newline='') as file:
-            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        with open(recipe_file_second_add_falcon, mode='w', newline='') as file:
-            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        print(f'Ordering experiments for wellnumbers {well_numbers}')
-
-        for i in range(batch_size):
-            with open(recipe_file_first_add_falcon, mode='a', newline='') as file:
-                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                writer.writerow(['FALCON1', '1', '384WellMP', str(well_numbers[i]), str(next_x[i][0])])  # ACC
-                writer.writerow(['FALCON1', '2', '384WellMP', str(well_numbers[i]),
-                                 str((15 - next_x[i][0]) * next_x[i][1])])  # Bio
-                writer.writerow(['FALCON1', '3', '384WellMP', str(well_numbers[i]), str(20 - (
-                            next_x[i][0] + ((15 - next_x[i][0]) * next_x[i][1]) + next_x[i][2]))])  # Vol(buffer), as a remainder of the total volume to 20 uL
-                writer.writerow(['FALCON1', '1', '384WellMP', str(well_numbers[i] + comparator_delta),
-                                 str(next_x[i][0])])  # ACC
-                writer.writerow(['FALCON1', '2', '384WellMP', str(well_numbers[i] + comparator_delta),
-                                 str((15 - next_x[i][0]) * next_x[i][1])])  # Bio
-                writer.writerow(['FALCON1', '3', '384WellMP', str(well_numbers[i] + comparator_delta), str(20 - (
-                            next_x[i][0] + ((15 - next_x[i][0]) * next_x[i][1])))])  # Vol(buffer), as a remainder of the total volume to 20 uL
-
-            with open(recipe_file_first_add_Amber, mode='a', newline='') as file:
-                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                writer.writerow(['AMBER1', '1', '384WellMP', str(well_numbers[i]), str(next_x[i][2])])  # Sample
-
-            with open(recipe_file_second_add_falcon, mode='a', newline='') as file:
-                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                writer.writerow(['FALCON1', '4', '384WellMP', str(well_numbers[i]), str(next_x[i][3])])  # Donor
-                writer.writerow(['FALCON1', '5', '384WellMP', str(well_numbers[i]), str(30 - next_x[i][3])])
-                writer.writerow(['FALCON1', '4', '384WellMP', str(well_numbers[i] + comparator_delta),
-                                 str(next_x[i][3])])  # Donor
-                writer.writerow(['FALCON1', '5', '384WellMP', str(well_numbers[i] + comparator_delta),
-                                 str(30 - next_x[i][3])])
-
-
+            if next_x[0] != 0:
+                writer.writerow(['SOURCE4','1','DEST1', str(iteration), str(next_x[0])]) #Buf1
+            if next_x[1] != 0:
+                writer.writerow(['SOURCE4','2','DEST1', str(iteration), str(next_x[1])]) #Buf2
+            if next_x[2] != 0:
+                writer.writerow(['SOURCE4', '3', 'DEST1', str(iteration), str(next_x[2])])  # buf3
+            if next_x[3] != 0:
+                writer.writerow(['SOURCE4', '4', 'DEST1', str(iteration), str(next_x[3])])  # Buf4
+            if next_x[4] != 0:
+                writer.writerow(['SOURCE4', '5', 'DEST1', str(iteration), str(next_x[4])])  # Buf5
+            if next_x[5] != 0:
+                writer.writerow(['SOURCE4', '6', 'DEST1', str(iteration), str(next_x[5])])  # Buf6
+            if next_x[6] != 0:
+                writer.writerow(['SOURCE4', '7', 'DEST1', str(iteration), str(next_x[6])])  # Buf7
+            if next_x[7] != 0:
+                writer.writerow(['SOURCE4', '8', 'DEST1', str(iteration), str(next_x[7])])  # Buf8
+            if next_x[8] != 0:
+                writer.writerow(['SOURCE4', '9', 'DEST1', str(iteration), str(next_x[8])])  # Buf9
+            if next_x[9] != 0:
+                writer.writerow(['SOURCE4', '10', 'DEST1', str(iteration), str(next_x[9])])  # Buf10
+            if next_x[0] != 0:
+                writer.writerow(['SOURCE4','1','DEST1', str(iteration+newcomparator_delta), str(next_x[0])]) #Buf1
+            if next_x[1] != 0:
+                writer.writerow(['SOURCE4','2','DEST1', str(iteration+newcomparator_delta), str(next_x[1])]) #Buf2
+            if next_x[2] != 0:
+                writer.writerow(['SOURCE4', '3', 'DEST1', str(iteration+newcomparator_delta), str(next_x[2])])  # buf3
+            if next_x[3] != 0:
+                writer.writerow(['SOURCE4', '4', 'DEST1', str(iteration+newcomparator_delta), str(next_x[3])])  # Buf4
+            if next_x[4] != 0:
+                writer.writerow(['SOURCE4', '5', 'DEST1', str(iteration+newcomparator_delta), str(next_x[4])])  # Buf5
+            if next_x[5] != 0:
+                writer.writerow(['SOURCE4', '6', 'DEST1', str(iteration+newcomparator_delta), str(next_x[5])])  # Buf6
+            if next_x[6] != 0:
+                writer.writerow(['SOURCE4', '7', 'DEST1', str(iteration+newcomparator_delta), str(next_x[6])])  # Buf7
+            if next_x[7] != 0:
+                writer.writerow(['SOURCE4', '8', 'DEST1', str(iteration+newcomparator_delta), str(next_x[7])])  # Buf8
+            if next_x[8] != 0:
+                writer.writerow(['SOURCE4', '9', 'DEST1', str(iteration+newcomparator_delta), str(next_x[8])])  # Buf9
+            if next_x[9] != 0:
+                writer.writerow(['SOURCE4', '10', 'DEST1', str(iteration+newcomparator_delta), str(next_x[9])])  # Buf10
+            writer.writerow(['SOURCE4','22','DEST1',str(iteration),str(100-(sum(next_x)))]) #Vol(water until 225uL)
+            writer.writerow(['SOURCE4','23','DEST1',str(iteration),str(10)]) ##Add Trypsin solution until 10 ug/mL
+            writer.writerow(['SOURCE4','24','DEST1',str(iteration),str(20)]) #Add substrate until 250uM
+            #antal rækker tilsvarende antal komponenter i buffer
+            writer.writerow(['SOURCE4','22','DEST1',str(iteration+newcomparator_delta),str(100-(sum(next_x))+10)]) #Vol(water until 225uL)
+            writer.writerow(['SOURCE4','24','DEST1',str(iteration+newcomparator_delta),str(20)]) #Add substrate until 250uM
 
 
 def make_log(link_to_log_file, iteration, latest_exp, list_of_transformed_meassurements):
@@ -239,7 +254,7 @@ def make_optimizer():
     # Instantiate the optimizer, we are building:
     optimizer = po.Optimizer(dimensions=space,
                                   acq_func='EI',
-                                  n_initial_points=20,
+                                  n_initial_points=n_initial,
                                   lhs=lhs,
                                   n_objectives=n_objectives,
                                   base_estimator=base_est,
@@ -279,7 +294,7 @@ for i in range(100000):
             update_tecan_status(Tecan_running_file, '"running"')
             time.sleep(5)
 
-        else:
+        elif iteration<=43:
             old_well_numbers = get_experiment_numbers(iteration, batch_size)
             latest_file = get_latest_file('C:\\Users\\Public\\Documents\\Tecan\\SparkControl\\Workspaces\\',
                                                'xlsx')
@@ -289,6 +304,11 @@ for i in range(100000):
             list_of_transformed_meassurements = [1 - float(meassurement) for meassurement in list_of_meassurements]
             opt.tell([latest_exp], list_of_transformed_meassurements)
             next_x = opt.ask(batch_size)
+            
+            if iteration in [n_initial,n_initial+10,n_initial+20,n_initial+23]:
+                expected_min=expected_minimum(opt)
+                best_prediction.append(expected_min)
+            
             iteration += 1
             print(f'Running on iteration {iteration}, because we have {len(opt.Xi)} datas')
             well_numbers = get_experiment_numbers(iteration, batch_size)
@@ -299,7 +319,26 @@ for i in range(100000):
 
             update_tecan_status(Tecan_running_file, '"running"')
             time.sleep(5)
-
+        else:
+            well_number_current=90+iteration-44
+            next_x=best_prediction[iteration-44][0]
+            make_prediction_check_file(link_to_recipe_folder, well_number_current, next_x)
+            if iteration==44:
+                old_well_numbers = get_experiment_numbers(iteration, batch_size)
+                latest_file = get_latest_file('C:\\Users\\Public\\Documents\\Tecan\\SparkControl\\Workspaces\\',
+                                               'xlsx')
+                list_of_meassurements = [
+                    extract_SPARK_reading(well_number, latest_file, comparator_delta=comparator_delta) for
+                    well_number in old_well_numbers]
+                list_of_transformed_meassurements = [1 - float(meassurement) for meassurement in list_of_meassurements]
+                make_log(log_file, iteration, latest_exp, list_of_transformed_meassurements)
+            if iteration>44:
+                old_well_numbers=well_number_current
+                list_of_meassurements = [
+                    extract_SPARK_reading(well_number, latest_file, comparator_delta=4) for
+                    well_number in old_well_numbers]
+                list_of_transformed_meassurements = [1 - float(meassurement) for meassurement in list_of_meassurements]
+            
         latest_exp = next_x[:]
 
     elif tecan_running[:7] == '"final"':
