@@ -193,10 +193,8 @@ def make_log(link_to_log_file, iteration, latest_exp, list_of_transformed_meassu
 def make_log_predictions(link_to_log_file, iteration, latest_prediction, list_of_transformed_predictions):
     with open(link_to_log_file, mode='a', newline='') as file:
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-
-        if iteration == n_initial:
-            writer.writerow([str(i) for i in list(range(len(space) + n_objectives))])
-        elif iteration > 1 and batch_size == 1:
+        
+        if iteration > 1 and batch_size == 1:
             writer.writerow(latest_prediction+list_of_transformed_predictions)
         elif iteration > 1 and batch_size > 1:
             for i in range(batch_size):
@@ -271,16 +269,17 @@ for i in range(100000):
             temporary_model=opt.tell([latest_exp], list_of_transformed_meassurements)
             
             next_x = opt.ask(batch_size)
+            if iteration >= n_initial:
+                prediction=expected_minimum(temporary_model)
+                x_prediction=prediction[0]
+                y_prediction=[prediction[1]]
+                make_log_predictions(log_file_predictions,iteration,x_prediction,y_prediction)
             iteration += 1
             print(f'Running on iteration {iteration}, because we have {len(opt.Xi)} datas')
             well_numbers = get_experiment_numbers(iteration, batch_size)
             print(f'Just found wellnumbers to be {well_numbers}')
             make_log(log_file, iteration, latest_exp, list_of_transformed_meassurements)
-            if iteration >= n_initial:
-                prediction=expected_minimum(temporary_model)
-                x_prediction=prediction[0]
-                y_prediction=prediction[1]
-                make_log_predictions(log_file_predictions,iteration,x_prediction,y_prediction)
+
                 
             make_recipe_file(recipe_folder, iteration, next_x)
 
