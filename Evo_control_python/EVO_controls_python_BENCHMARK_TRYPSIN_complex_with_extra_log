@@ -4,6 +4,7 @@ import random
 import ProcessOptimizer as po # used to suggest next experiment
 from ProcessOptimizer.utils import cook_estimator #Used to customize the algorithm
 from ProcessOptimizer.learning.gaussian_process.kernels import Matern #A specific "brain" in the algorithm
+from ProcessOptimizer import expected_minimum
 import glob
 import os
 import pandas as pd
@@ -11,11 +12,13 @@ import pandas as pd
 
 Tecan_running_file = 'C:\\Users\\Tecan\\Desktop\\Variable.txt'
 recipe_folder = 'C:\\Users\\Public\\Documents\\Tecan\\'
-log_file = 'C:\\temp\\Trypsin_10buffers_n20_w_control.csv'
+log_file = 'C:\\temp\\Trypsin_10buffers_n20_w_control_log_of_experimets.csv'
+log_file_predictions='C:\\temp\\Trypsin_10buffers_n20_w_control_log_of_predictions.csv'
 batch_size = 1
 comparator_delta = 48
 space = [(0, 10)]*10
 n_objectives = 1
+n_initial=20
 
 
 def get_latest_file(path, fileextension):
@@ -166,46 +169,6 @@ def make_recipe_file(link_to_recipe_folder, iteration, recipe):
             #antal rækker tilsvarende antal komponenter i buffer
             writer.writerow(['SOURCE4','22','DEST1',str(iteration+comparator_delta),str(100-(sum(next_x))+10)]) #Vol(water until 225uL)
             writer.writerow(['SOURCE4','24','DEST1',str(iteration+comparator_delta),str(20)]) #Add substrate until 250uM
-    else:
-        recipe_file_first_add_falcon = os.path.join(link_to_recipe_folder, 'LOCI_first_adds_FALCON1.csv')
-        recipe_file_first_add_Amber = os.path.join(link_to_recipe_folder, 'LOCI_first_adds_AMBER1.csv')
-        recipe_file_second_add_falcon = os.path.join(link_to_recipe_folder, 'LOCI_second_adds_FALCON1.csv')
-        with open(recipe_file_first_add_falcon, mode='w', newline='') as file:
-            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        with open(recipe_file_first_add_Amber, mode='w', newline='') as file:
-            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        with open(recipe_file_second_add_falcon, mode='w', newline='') as file:
-            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        print(f'Ordering experiments for wellnumbers {well_numbers}')
-
-        for i in range(batch_size):
-            with open(recipe_file_first_add_falcon, mode='a', newline='') as file:
-                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                writer.writerow(['FALCON1', '1', '384WellMP', str(well_numbers[i]), str(next_x[i][0])])  # ACC
-                writer.writerow(['FALCON1', '2', '384WellMP', str(well_numbers[i]),
-                                 str((15 - next_x[i][0]) * next_x[i][1])])  # Bio
-                writer.writerow(['FALCON1', '3', '384WellMP', str(well_numbers[i]), str(20 - (
-                            next_x[i][0] + ((15 - next_x[i][0]) * next_x[i][1]) + next_x[i][2]))])  # Vol(buffer), as a remainder of the total volume to 20 uL
-                writer.writerow(['FALCON1', '1', '384WellMP', str(well_numbers[i] + comparator_delta),
-                                 str(next_x[i][0])])  # ACC
-                writer.writerow(['FALCON1', '2', '384WellMP', str(well_numbers[i] + comparator_delta),
-                                 str((15 - next_x[i][0]) * next_x[i][1])])  # Bio
-                writer.writerow(['FALCON1', '3', '384WellMP', str(well_numbers[i] + comparator_delta), str(20 - (
-                            next_x[i][0] + ((15 - next_x[i][0]) * next_x[i][1])))])  # Vol(buffer), as a remainder of the total volume to 20 uL
-
-            with open(recipe_file_first_add_Amber, mode='a', newline='') as file:
-                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                writer.writerow(['AMBER1', '1', '384WellMP', str(well_numbers[i]), str(next_x[i][2])])  # Sample
-
-            with open(recipe_file_second_add_falcon, mode='a', newline='') as file:
-                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                writer.writerow(['FALCON1', '4', '384WellMP', str(well_numbers[i]), str(next_x[i][3])])  # Donor
-                writer.writerow(['FALCON1', '5', '384WellMP', str(well_numbers[i]), str(30 - next_x[i][3])])
-                writer.writerow(['FALCON1', '4', '384WellMP', str(well_numbers[i] + comparator_delta),
-                                 str(next_x[i][3])])  # Donor
-                writer.writerow(['FALCON1', '5', '384WellMP', str(well_numbers[i] + comparator_delta),
-                                 str(30 - next_x[i][3])])
-
 
 
 
@@ -225,6 +188,24 @@ def make_log(link_to_log_file, iteration, latest_exp, list_of_transformed_meassu
         else:
             print('Error # 42')
 
+
+
+def make_log_predictions(link_to_log_file, iteration, latest_prediction, list_of_transformed_predictions):
+    with open(link_to_log_file, mode='a', newline='') as file:
+        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
+        if iteration == n_initial:
+            writer.writerow([str(i) for i in list(range(len(space) + n_objectives))])
+        elif iteration > 1 and batch_size == 1:
+            writer.writerow(latest_prediction+list_of_transformed_predictions)
+        elif iteration > 1 and batch_size > 1:
+            for i in range(batch_size):
+                temp_list = latest_prediction[i][:]
+                temp_list.append(list_of_transformed_predictions[i])
+                writer.writerow(temp_list)
+        else:
+            print('Error # 42')
+
 def update_tecan_status(link_to_control_file, status):
     with open(link_to_control_file, 'w') as file:
         file.write(str(status))
@@ -239,7 +220,7 @@ def make_optimizer():
     # Instantiate the optimizer, we are building:
     optimizer = po.Optimizer(dimensions=space,
                                   acq_func='EI',
-                                  n_initial_points=20,
+                                  n_initial_points=n_initial,
                                   lhs=lhs,
                                   n_objectives=n_objectives,
                                   base_estimator=base_est,
@@ -272,6 +253,7 @@ for i in range(100000):
             print(f'Just found wellnumbers to be {well_numbers}')
 
             opt = make_optimizer()
+            opt_for_predictions=make_optimizer()
             next_x = opt.ask(batch_size)
 
             make_recipe_file(recipe_folder, iteration, next_x)
@@ -288,13 +270,25 @@ for i in range(100000):
                 well_number in old_well_numbers]
             list_of_transformed_meassurements = [1 - float(meassurement) for meassurement in list_of_meassurements]
             opt.tell([latest_exp], list_of_transformed_meassurements)
+            
             next_x = opt.ask(batch_size)
+            if next_x==opt_for_predictions.ask(batch_size):
+                print("same ask output, this means the models are the same")
+            else:
+                print("The ask output are different....")
             iteration += 1
             print(f'Running on iteration {iteration}, because we have {len(opt.Xi)} datas')
             well_numbers = get_experiment_numbers(iteration, batch_size)
             print(f'Just found wellnumbers to be {well_numbers}')
             make_log(log_file, iteration, latest_exp, list_of_transformed_meassurements)
-
+            if iteration < n_initial:
+                opt_for_predictions.tell([latest_exp], list_of_transformed_meassurements)
+            if iteration >= n_initial:
+                prediction=expected_minimum(opt_for_predictions.tell([latest_exp], list_of_transformed_meassurements))
+                x_prediction=prediction[0]
+                y_prediction=prediction[1]
+                make_log_predictions(log_file_predictions,iteration,x_prediction,y_prediction)
+                
             make_recipe_file(recipe_folder, iteration, next_x)
 
             update_tecan_status(Tecan_running_file, '"running"')
