@@ -253,7 +253,6 @@ for i in range(100000):
             print(f'Just found wellnumbers to be {well_numbers}')
 
             opt = make_optimizer()
-            opt_for_predictions=make_optimizer()
             next_x = opt.ask(batch_size)
 
             make_recipe_file(recipe_folder, iteration, next_x)
@@ -269,22 +268,16 @@ for i in range(100000):
                 extract_SPARK_reading(well_number, latest_file, comparator_delta=comparator_delta) for
                 well_number in old_well_numbers]
             list_of_transformed_meassurements = [1 - float(meassurement) for meassurement in list_of_meassurements]
-            opt.tell([latest_exp], list_of_transformed_meassurements)
+            temporary_model=opt.tell([latest_exp], list_of_transformed_meassurements)
             
             next_x = opt.ask(batch_size)
-            if next_x==opt_for_predictions.ask(batch_size):
-                print("same ask output, this means the models are the same")
-            else:
-                print("The ask output are different....")
             iteration += 1
             print(f'Running on iteration {iteration}, because we have {len(opt.Xi)} datas')
             well_numbers = get_experiment_numbers(iteration, batch_size)
             print(f'Just found wellnumbers to be {well_numbers}')
             make_log(log_file, iteration, latest_exp, list_of_transformed_meassurements)
-            if iteration < n_initial:
-                opt_for_predictions.tell([latest_exp], list_of_transformed_meassurements)
             if iteration >= n_initial:
-                prediction=expected_minimum(opt_for_predictions.tell([latest_exp], list_of_transformed_meassurements))
+                prediction=expected_minimum(temporary_model)
                 x_prediction=prediction[0]
                 y_prediction=prediction[1]
                 make_log_predictions(log_file_predictions,iteration,x_prediction,y_prediction)
