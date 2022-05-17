@@ -14,7 +14,7 @@ Tecan_running_file = 'C:\\Users\\Tecan\\Desktop\\Variable.txt'
 recipe_folder = 'C:\\Users\\Public\\Documents\\Tecan\\'
 log_file = 'C:\\temp\\Trypsin_10buffers_n20_w_control_log_of_experimets.csv'
 log_file_predictions='C:\\temp\\Trypsin_10buffers_n20_w_control_log_of_predictions.csv'
-log_file_prediction_results='C:\\temp\\Trypsin_10buffers_n20_w_control_log_of_prediction_results.csv'
+log_file_predictions_results='C:\\temp\\Trypsin_10buffers_n20_w_control_log_of_prediction_results.csv'
 batch_size = 1
 comparator_delta = 48
 space = [(0, 10)]*10
@@ -275,18 +275,18 @@ def make_full_recipy(link,result_column,link_to_recipe_folder,header,ammount_of_
         for i in range(len(df1)):
             writer.writerow([source_name,23,destination_name,str(i+1),str(10)]) ##Add Trypsin solution until 10 ug/mL
             
-def make_log_predictions_tried(log_file_predictions,excel_output):
+def make_log_predictions_results(log_file_predictions_results,log_file_predictions,excel_output):
     df_predictions = pd.read_csv(log_file_predictions, sep=',',header=None)
     
     df=excel_output
-    with open(log_file_prediction_results, mode='a', newline='') as file:
+    with open(log_file_predictions_results, mode='a', newline='') as file:
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        for i in len(df_predictions):
+        for i in range(len(df_predictions)):
             sample_row, sample_column = humanize(i+1)
             absorbance_sample = df.loc[sample_row, str(sample_column)]
-            blank_row, blank_column = humanize(experiment_number + comparator_delta)
+            blank_row, blank_column = humanize(i +1+ comparator_delta)
             absorbance_blank = df.loc[blank_row, str(blank_column)]
-            writer.writerow(["expected",str(df_predictions.iloc[i,9]),"got",str(absorbance_sample - absorbance_blank)])
+            writer.writerow(["Model expected",str(df_predictions.iloc[i,10]),"Experiment gave",str(absorbance_sample - absorbance_blank)])
             
 
 update_tecan_status(Tecan_running_file, '"standby"')
@@ -391,5 +391,5 @@ for i in range(10000):
                            skiprows=int(rowstoskip)+1,
                            skipfooter=int(footertoskip)-1,
                            index_col='<>')
-        make_log_predictions_tried(log_file_predictions=log_file_predictions,excel_output=excel_output)
+        make_log_predictions_results(log_file_predictions_results=log_file_predictions_results,log_file_predictions=log_file_predictions,excel_output=excel_output)
 
