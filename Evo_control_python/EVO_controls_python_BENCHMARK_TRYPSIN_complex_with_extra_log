@@ -14,6 +14,7 @@ Tecan_running_file = 'C:\\Users\\Tecan\\Desktop\\Variable.txt'
 recipe_folder = 'C:\\Users\\Public\\Documents\\Tecan\\'
 log_file = 'C:\\temp\\Trypsin_10buffers_n20_w_control_log_of_experimets.csv'
 log_file_predictions='C:\\temp\\Trypsin_10buffers_n20_w_control_log_of_predictions.csv'
+log_file_prediction_results='C:\\temp\\Trypsin_10buffers_n20_w_control_log_of_prediction_results.csv'
 batch_size = 1
 comparator_delta = 48
 space = [(0, 10)]*10
@@ -274,7 +275,19 @@ def make_full_recipy(link,result_column,link_to_recipe_folder,header,ammount_of_
         for i in range(len(df1)):
             writer.writerow([source_name,23,destination_name,str(i+1),str(10)]) ##Add Trypsin solution until 10 ug/mL
             
-
+def make_log_predictions_tried(log_file_predictions,excel_output):
+    df_predictions = pd.read_csv(log_file_predictions, sep=',',header=None)
+    
+    df=excel_output
+    with open(log_file_prediction_results, mode='a', newline='') as file:
+        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        for i in len(df_predictions):
+            sample_row, sample_column = humanize(i+1)
+            absorbance_sample = df.loc[sample_row, str(sample_column)]
+            blank_row, blank_column = humanize(experiment_number + comparator_delta)
+            absorbance_blank = df.loc[blank_row, str(blank_column)]
+            writer.writerow(["expected",str(df_predictions.iloc[i,9]),"got",str(absorbance_sample - absorbance_blank)])
+            
 
 update_tecan_status(Tecan_running_file, '"standby"')
 
@@ -339,6 +352,7 @@ for i in range(100000):
 
     elif tecan_running[:7] == '"final"':
         print('Finished')
+        time.sleep(5)
         break
     else:
         print(f'tecan_running was {tecan_running}, I had expected it to be in [0,1]')
@@ -360,3 +374,22 @@ make_full_recipy(link=log_file_predictions,
                  comparator_delta=48,
                  destination_name="DEST2",
                  every_n=1)
+
+for i in range(10000):
+    tecan_running = read_tecan_status(Tecan_running_file)
+    print(f'Read Status of tecan_running-file. it is {tecan_running} and of type {type(tecan_running)}')
+    if tecan_running == '"running"':
+        time.sleep(60)
+        print('tecan must still be running. I\'ll keep waiting')
+    elif tecan_running[:9] == '"standby"':
+        latest_file=get_latest_file('C:\\Users\\Public\\Documents\\Tecan\\SparkControl\\Workspaces\\','xlsx')
+        df1 = pd.read_excel(latest_file)
+        rowstoskip = df1[df1.iloc[:, 0] == "<>"].index.to_list()[0]
+        footertoskip=int(df1.shape[0])-df1[df1.iloc[:,0] == "H"].index.to_list()[0]
+        
+        excel_output = pd.read_excel(latest_file,
+                           skiprows=int(rowstoskip)+1,
+                           skipfooter=int(footertoskip)-1,
+                           index_col='<>')
+        make_log_predictions_tried(log_file_predictions=log_file_predictions,excel_output=excel_output)
+
