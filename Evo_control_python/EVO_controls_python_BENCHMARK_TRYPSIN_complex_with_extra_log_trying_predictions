@@ -374,6 +374,8 @@ make_full_recipy(link=log_file_predictions,
                  comparator_delta=48,
                  destination_name="DEST2",
                  every_n=1)
+                 
+update_tecan_status(Tecan_running_file, '"running"')
 
 for i in range(10000):
     tecan_running = read_tecan_status(Tecan_running_file)
