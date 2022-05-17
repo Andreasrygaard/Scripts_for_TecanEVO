@@ -225,6 +225,55 @@ def make_optimizer():
                                   acq_func_kwargs={'xi': 0.1})
     return optimizer
 
+def make_recipe_csv(link,result_column,header=None,every_n=5):
+    df = pd.read_csv(link, sep=',',header=header)
+    df.drop(result_column,axis=1,inplace=True)
+    df_sub=df[[i%every_n==0 for i in range(len(df))]]
+    return df_sub
+    
+def make_recipe_file(link_to_recipe_folder, iteration, ammount_of_buffers, source_name,destination_name,comparator_delta, recipe):
+    next_x = recipe
+
+    recipe_file_first_add_falcon = os.path.join(link_to_recipe_folder, 'TRYPSIN_test_predictions.csv')
+    with open(recipe_file_first_add_falcon, mode='a', newline='') as file:
+        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        
+        for i in range(ammount_of_buffers):
+            if next_x[i] != 0:
+                writer.writerow([source_name,str(i+1),destination_name, str(iteration), str(next_x[i])]) #Buf1
+        if comparator_delta:        
+            for i in range(ammount_of_buffers):
+                if next_x[i] != 0:
+                    writer.writerow([source_name,str(i+1),destination_name, str(iteration+comparator_delta), str(next_x[i])]) #Buf1-10
+        writer.writerow([source_name,22,destination_name,str(iteration),str(100-(sum(next_x)))]) #Vol(water until 225uL)
+        #writer.writerow([source_name,23,destination_name,str(iteration),str(10)]) ##Add Trypsin solution until 10 ug/mL
+        writer.writerow([source_name,24,destination_name,str(iteration),str(20)]) #Add substrate until 250uM
+        #antal rækker tilsvarende antal komponenter i buffer
+        if comparator_delta:
+            writer.writerow([source_name,22,destination_name,str(iteration+comparator_delta),str(100-(sum(next_x))+10)]) #Vol(water until 225uL)
+            writer.writerow([source_name,24,destination_name,str(iteration+comparator_delta),str(20)]) #Add substrate until 250uM
+
+
+def make_full_recipy(link,result_column,link_to_recipe_folder,header,ammount_of_buffers,source_name,comparator_delta,destination_name,every_n=5):
+    df1=make_recipe_csv(link,result_column,header,every_n)
+
+    for i in range(len(df1)):
+        recipe=df1.values.tolist()[i]
+        make_recipe_file(link_to_recipe_folder=link_to_recipe_folder,
+                         iteration=i+1,
+                         ammount_of_buffers=ammount_of_buffers,
+                         source_name=source_name,
+                         comparator_delta=comparator_delta,
+                         destination_name=destination_name,
+                         recipe=recipe)
+        
+    recipe_file_first_add_falcon = os.path.join(link_to_recipe_folder, 'TRYPSIN_test_predictions.csv')
+    with open(recipe_file_first_add_falcon, mode='a', newline='') as file:
+        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        
+        for i in range(len(df1)):
+            writer.writerow([source_name,23,destination_name,str(i+1),str(10)]) ##Add Trypsin solution until 10 ug/mL
+            
 
 
 update_tecan_status(Tecan_running_file, '"standby"')
@@ -293,3 +342,21 @@ for i in range(100000):
         break
     else:
         print(f'tecan_running was {tecan_running}, I had expected it to be in [0,1]')
+
+
+#ammount_of_buffers=10
+#source_name="SOURCE4"
+#destination_name="DEST2"
+#comparator_delta=48
+#every_n=1
+#link_to_recipe_folder=recipe_folder
+
+make_full_recipy(link=log_file_predictions,
+                 result_column=10,
+                 link_to_recipe_folder=recipe_folder,
+                 header=None,
+                 ammount_of_buffers=10,
+                 source_name="SOURCE4",
+                 comparator_delta=48,
+                 destination_name="DEST2",
+                 every_n=1)
