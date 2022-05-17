@@ -394,4 +394,5 @@ for i in range(10000):
                            skipfooter=int(footertoskip)-1,
                            index_col='<>')
         make_log_predictions_results(log_file_predictions_results=log_file_predictions_results,log_file_predictions=log_file_predictions,excel_output=excel_output)
-
+        print("all done")
+        break 
