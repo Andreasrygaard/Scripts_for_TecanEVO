@@ -376,13 +376,14 @@ make_full_recipy(link=log_file_predictions,
                  every_n=1)
                  
 update_tecan_status(Tecan_running_file, '"running"')
+print("switching to testing predictions")
 
 for i in range(10000):
     tecan_running = read_tecan_status(Tecan_running_file)
     print(f'Read Status of tecan_running-file. it is {tecan_running} and of type {type(tecan_running)}')
     if tecan_running == '"running"':
         time.sleep(60)
-        print('tecan must still be running. I\'ll keep waiting')
+        print('tecan must still be running (trying predictions). I\'ll keep waiting')
     elif tecan_running[:9] == '"standby"':
         latest_file=get_latest_file('C:\\Users\\Public\\Documents\\Tecan\\SparkControl\\Workspaces\\','xlsx')
         df1 = pd.read_excel(latest_file)
